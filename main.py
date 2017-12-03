@@ -1,12 +1,12 @@
-from PIL import Image, ImageTk
-import sys
 from tkinter import filedialog
+from PIL import Image, ImageTk
 import tkinter as tk
-import cv2
+import numpy as np
 import random
+import sys
+import cv2
 
 # cv2 - opencv (used for image processing)
-import numpy as np
 
 LARGE_FONT = ("Trebuchet MS", 14)
 FONT_SMALL = ("Trebuchet MS", 1)
@@ -43,19 +43,42 @@ class PhotoEditor():
         self.disp(f"Unsharp Masking Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
 
         new_img = img
-        return new_img
+        open_cv_image = np.array(new_img) #convert the image to a format that can be use by open_cv
+        # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
+
+        # cv2.getGaussianKernel() will show the kernel used for this
+        blur = cv2.GaussianBlur(open_cv_image, (5, 5), 10.0)
+        # Takes weighted sum of two arrays
+        unsharp_image = cv2.addWeighted(open_cv_image, 1.5, blur, -0.5, 0, open_cv_image)
+
+        # Convert into Image
+        im = Image.fromarray(unsharp_image)
+        return im
+
+    def custom_kernel(self, img, kernel, scale=1):
+        self.disp(f"{kernel} colved on img")
+        new_img = img
+        # Convert the image to a format that can be use by open_cv
+        open_cv_image = np.array(new_img)
+        # Open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
+        blur = cv2.filter2D(open_cv_image, -1, scale*kernel)
+
+        # Convert into Image
+        im = Image.fromarray(blur)
+        return im
 
     def median_filter(self, img, x_0=0, y_0=0, x_1=500, y_1=500):
         ''' Applies a median filter on the specific range //'''
         self.disp(f"Median Filter Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
         new_img = img
-        open_cv_image = np.array(new_img) #convert the image to a format that can be use by open_cv
+        # Convert the image to a format that can be use by open_cv
+        open_cv_image = np.array(new_img)
         # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
 
         # cv2.getGaussianKernel() will show the kernel used for this
         blur = cv2.medianBlur(open_cv_image, 3)
 
-        # convert into Image
+        # Convert into Image
         im = Image.fromarray(blur)
         return im
 
@@ -64,7 +87,8 @@ class PhotoEditor():
         ''' Implements box blur on a given range '''
         self.disp(f"Box Blur Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
         new_img = img
-        open_cv_image = np.array(new_img) #convert the image to a format that can be use by open_cv
+        # Convert the image to a format that can be use by open_cv
+        open_cv_image = np.array(new_img)
         # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
 
         # cv2.getGaussianKernel() will show the kernel used for this
@@ -94,11 +118,23 @@ class PhotoEditor():
         ''' Applies a gaussian blur on the specified region '''
         self.disp(f"Gaussian Blur Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
         new_img = img
-        open_cv_image = np.array(new_img) #convert the image to a format that can be use by open_cv
-        # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
+        # Convert the image to a format that can be use by open_cv
+        open_cv_image = np.array(new_img)
 
         # cv2.getGaussianKernel() will show the kernel used for this
         blur = cv2.GaussianBlur(open_cv_image, (5, 5), 3)
+
+        # convert into Image
+        im = Image.fromarray(blur)
+        return im
+
+    def bilateral_filter(self, img, x_0=0, y_0=0, x_1=800, y_1=600):
+        self.disp(f"Gaussian Blur Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
+        new_img = img
+        open_cv_image = np.array(new_img) #convert the image to a format that can be use by open_cv
+        # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
+
+        blur = cv2.bilateralFilter(open_cv_image, 20, 15, 80, 80)
 
         # convert into Image
         im = Image.fromarray(blur)
@@ -123,7 +159,6 @@ class PhotoEditor():
         Returns the format, size, and mode (RBG, etc.) associate with a PIL image
         object
         '''
-        global show_data
         return f"Format: {img.format}, Size: {img.size}, Mode: {img.mode}"
 
     def check_arguments(self):
@@ -220,7 +255,7 @@ class PhotoGUI(tk.Tk):
         frame = self.frames[controller]
         # Bring the frame to the front
         frame.tkraise()
-        frame.focus_set()  # TODO: Why does this work?
+        frame.focus_set()  # TODO:
 
     def set_size(self, width=500, height=500):
         self.width = width
@@ -238,39 +273,43 @@ class StartPage(tk.Frame):
         self.parent = parent
         self.width = 500
         self.height = 500
+        self.BUTTON_COLOR = "#4286f4"
+        self.BUTTON_HIGHLIGHT = "#ffffff"
 
         tk.Frame.__init__(self, parent, bg="#EEEEEE")
 
-        label = tk.Label(self, text="Off-Brand Photoshop", font=LARGE_FONT, bg="#EEEEEE", fg="#4286f4")
-        label.grid(row=0, column=0, sticky="W", padx=(15,0) )
+        label = tk.Label(self, text="Off-Brand Photoshop", font=LARGE_FONT, bg="#EEEEEE", fg=self.BUTTON_COLOR)
+        label.grid(row=0, column=0, sticky="W", padx=(15, 0))
 
-        button = tk.Button(self, text="Choose Image", command=self.choose_file, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=10, pady=6)
-        button2 = tk.Button(self, text="Copy", command=self.copy_img, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=15, pady=6)
-        button3 = tk.Button(self, text="Save", command=self.save, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=10, pady=6)
-        button4 = tk.Button(self, text="Save as...", command=self.save_as, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=10, pady=6)
-        button5 = tk.Button(self, text="Undo", command=self.undo, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=10, pady=6)
+        button = tk.Button(self, text="Choose Image", command=self.choose_file, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
+        button2 = tk.Button(self, text="Copy", command=self.copy_img, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=15, pady=6)
+        button3 = tk.Button(self, text="Save", command=self.save, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
+        button4 = tk.Button(self, text="Save as...", command=self.save_as, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
+        button5 = tk.Button(self, text="Undo", command=self.undo, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
 
-        button.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button2.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button2.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button3.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button3.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button4.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button4.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button5.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button5.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
+        for i in [button, button2, button3, button4, button5]:
+            i.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
+            i.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
 
-        button.grid(row=0, column=5, padx=0, pady=(15,10), sticky="E")
-        button2.grid(row=0, column=6, padx=0, pady=(15,10), sticky="E")
-        button3.grid(row=0, column=7, padx=0, pady=(15,10), sticky="E")
-        button4.grid(row=0, column=8, padx=0, pady=(15,10), sticky="E")
-        button5.grid(row=0, column=9, padx=(0, 14), pady=(15,10), sticky="E")
+        button_padding = (15, 10)
 
-        self.curr_image = Image.open("C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo2.jpg") \
+        button.grid(row=0, column=5, padx=0, pady=button_padding,
+                    sticky="E")
+        button2.grid(row=0, column=6, padx=0, pady=button_padding,
+                     sticky="E")
+        button3.grid(row=0, column=7, padx=0, pady=button_padding,
+                     sticky="E")
+        button4.grid(row=0, column=8, padx=0, pady=button_padding,
+                     sticky="E")
+        button5.grid(row=0, column=9, padx=(0, 14), pady=button_padding,
+                     sticky="E")
+
+        demo_dir = "C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo1.jpg"
+
+        self.curr_image = Image.open(demo_dir) \
             .resize((self.width, self.width), Image.ANTIALIAS)
         self.prev_image = None
-        self.curr_dir = "C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo2.jpg"
+        self.curr_dir = demo_dir
         self.prev_dir = None
 
         self.tkimg = ImageTk.PhotoImage(self.curr_image)
@@ -281,10 +320,12 @@ class StartPage(tk.Frame):
 
         button6 = tk.Button(self, text="Box Blur", command=self.box_blur, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=28, pady=5)
         button7 = tk.Button(self, text="Gaussian Blur", command=self.gaussian_blur, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=15, pady=5)
-        button8 = tk.Button(self, text="Flip", command=self.flip, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=40, pady=5)
+        button8 = tk.Button(self, text="Rotate180", command=self.flip, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=20, pady=5)
         button9 = tk.Button(self, text="Unsharp Masking", command=self.unsharp_masking, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=5, pady=5)
         button10 = tk.Button(self, text="Median Filter", command=self.median_filter, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=15, pady=5)
+        button12 = tk.Button(self, text="Bilateral Filter", command=self.bilateral_filter, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=15, pady=5)
         button11 = tk.Button(self, text="Add Noise", command=self.add_noise, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=22, pady=5)
+        button13 = tk.Button(self, text="Custom Kernel", command=self.kernel_custom, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=13, pady=5)
 
         button6.grid(row=1, column=10, padx=(0, 14), pady=0)
         button7.grid(row=2, column=10, padx=(0, 14), pady=5)
@@ -292,27 +333,19 @@ class StartPage(tk.Frame):
         button9.grid(row=4, column=10, padx=(0, 14), pady=5)
         button10.grid(row=5, column=10, padx=(0, 14), pady=0)
         button11.grid(row=6, column=10, padx=(0, 14), pady=5)
+        button12.grid(row=7, column=10, padx=(0, 14), pady=5)
+        button13.grid(row=8, column=10, padx=(0, 14), pady=5)
 
-        button6.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button6.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button7.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button7.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button8.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button8.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button9.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button9.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button10.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button10.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
-        button11.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
-        button11.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
+        for i in [button6, button7, button8, button9, button10, button11, button12, button13]:
+            i.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
+            i.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
+
+        self.input_kernel = tk.Text(self, height=2, width=12)
+        self.input_kernel.grid(row=9, column=10, padx=0, pady=0)
 
         self.w = tk.Scale(self, from_=0, to=250000)
-        self.w.grid(row=7, column=10, padx=0, pady=0)
+        self.w.grid(row=10, column=10, padx=0, pady=0)
 
-        label_one = tk.Label(self, text="X-Start: ", font=LARGE_FONT, bg="#505050", fg="#ffffff")
-        label_two = tk.Label(self, text="X-End: ", font=LARGE_FONT, bg="#505050", fg="#ffffff")
-        label_three = tk.Label(self, text="Y-Start: ", font=LARGE_FONT, bg="#505050", fg="#ffffff")
-        label_four = tk.Label(self, text="Y-End: ", font=LARGE_FONT, bg="#505050", fg="#ffffff")
 
         self.editor = PhotoEditor("C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo2.jpg")
         self.label2 = tk.Label(self, text="Metadata: null", font=LARGE_FONT, bg="#EEEEEE", fg="#4286f4")
@@ -331,6 +364,26 @@ class StartPage(tk.Frame):
     def update_metadata(self):
         self.label2.config(text=f"{self.editor.get_meta_data(self.curr_image)}")
 
+    def kernel_custom(self):
+        ''' Allows the user to input a custom kernel that will be convolved
+            with the picture '''
+        s = self.input_kernel.get("1.0", "end-1c")
+        s = [int(i) for i in s]
+        if s == []:
+            # default is laplacian kernel
+            kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]],
+                              dtype=np.int32)
+            total = 1
+        else:
+            # TODO: do this when it's not 2 am
+            total = s[0] + s[1] + s[2] + s[3] + s[4] + s[5] + s[6] + s[7] + s[8]
+            total = 1/total
+            kernel = np.array([[s[0], s[1], s[2]], [s[3], s[4], s[5]], [s[6],
+                              s[7], s[8]]], dtype=np.int32)
+
+        new_image = self.editor.custom_kernel(self.curr_image, kernel, total)
+        self.update_image(new_image, mode="2")
+
     def add_noise(self):
         new_image = self.editor.add_noise(self.curr_image, self.w.get())
         self.update_image(new_image, mode="2")
@@ -342,16 +395,31 @@ class StartPage(tk.Frame):
     def copy_img(self):
         ''' '''
         self.parent.clipboard_clear()
-        self.parent.clipboard_append('Copying picture')
+        self.parent.clipboard_append(self.curr_dir)
         self.parent.update()
 
     def save(self, filename=""):
-        ''' '''
-        pass
+        ''' Saves a file given a filename '''
+        if filename == "":
+            if self.curr_dir is None:
+                filename = self.save_as()
+            else:
+                filename = self.curr_dir
+
+        self.curr_image.save(filename)
 
     def save_as(self):
-        ''' '''
-        pass
+        try:
+            filename = filedialog.askopenfilename(initialdir="/", title="Select \
+                file", filetypes=(("jpeg files", "*.jpg"), ("all files", "*.*")))
+            self.save(filename)
+        except:
+            pass
+
+    def bilateral_filter(self):
+        ''' Calls the bilateral filter function in the editor '''
+        new_image = self.editor.bilateral_filter(self.curr_image)
+        self.update_image(new_image, mode="2")
 
     def unsharp_masking(self):
         '''  Calls the unsharp masking function in the photo editor class '''
@@ -375,7 +443,7 @@ class StartPage(tk.Frame):
 
     def flip(self):
         ''' Calls the flip function in the photo editor class '''
-        new_image = self.editor.flip(self.curr_image)
+        new_image = self.editor.flip(self.curr_image, 0, 0, self.curr_image.size[0], self.curr_image.size[1])
         self.update_image(new_image, mode="2")
 
     def update_image(self, image_name, mode="Image Name"):
@@ -402,9 +470,12 @@ class StartPage(tk.Frame):
     def choose_file(self):
         ''' Opens that dialog that lets the user put in a file name, and then
         updates the image accordingly '''
-        filename = filedialog.askopenfilename(initialdir="/", title="Select \
-            file", filetypes=(("jpeg files", "*.jpg"), ("all files", "*.*")))
-        self.update_image(filename)
+        try:
+            filename = filedialog.askopenfilename(initialdir="/", title="Select \
+                file", filetypes=(("jpeg files", "*.jpg"), ("all files", "*.*")))
+            self.update_image(filename)
+        except:
+            pass
 
 
 def init():
