@@ -82,7 +82,6 @@ class PhotoEditor():
         im = Image.fromarray(blur)
         return im
 
-    # TODO: make x_1 xmax, and y_1 ymax
     def box_blur(self, img, x_0=0, y_0=0, x_1=500, y_1=500):
         ''' Implements box blur on a given range '''
         self.disp(f"Box Blur Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
@@ -171,6 +170,7 @@ class PhotoEditor():
             self.show_output = True
 
     def disp(self, msg):
+        ''' Print out data '''
         if self.show_data:
             print(msg)
 
@@ -178,13 +178,11 @@ class PhotoEditor():
 class PhotoGUI(tk.Tk):
 
     def __init__(self, *args, **kwargs):
-        self.b_key = False  # Box blur
-        self.g_key = False  # Gauss blur
-        self.f_key = False  # Flip
-        self.u_key = False  # Unsharp Masking
-        self.m_key = False  # Median Filter
+        ''' Creates the main Tkinter GUI '''
+        # Box Blur, Gauss Blur, Flip, Unsharp Masking, Median Filter, Add Noise
+        self.keys = {'b_key': False, 'g_key': False, 'f_key': False, 'u_left': False, 'm_left': False, 'a_key': False, 'z_key': False, 'x_key': False, 'i_key': False, 'c_key': False}
 
-        ''' Creates the display for the frames in the photo editor '''
+        # Creates the display for the frames
         tk.Tk.__init__(self, *args, **kwargs)
         container = tk.Frame(self)
 
@@ -193,6 +191,7 @@ class PhotoGUI(tk.Tk):
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
 
+        # Create a variable to store all of the frames in
         self.frames = {}
 
         frame = StartPage(container, self)
@@ -208,56 +207,82 @@ class PhotoGUI(tk.Tk):
 
     def key_down(self, event):
         ''' Prints out keys pressed on the StartPage '''
-        # TODO: optimize using dictionary
         if event.char == "b":
-            if not self.b_key:
+            if not self.keys['b_key']:
                 self.frames["StartPage"].box_blur()
-            self.b_key = True
+            self.keys['b_key'] = True
         elif event.char == "g":
-            if not self.g_key:
+            if not self.keys['g_key']:
                 self.frames["StartPage"].gaussian_blur()
-            self.g_key = True
+            self.keys['g_key'] = True
         elif event.char == "f":
-            if not self.f_key:
+            if not self.keys['f_key']:
                 self.frames["StartPage"].flip()
-            self.f_key = True
+            self.keys['f_key'] = True
         elif event.char == "u":
-            if not self.u_key:
+            if not self.keys['u_key']:
                 self.frames["StartPage"].unsharp_masking()
-            self.u_key = True
+            self.keys['u_key'] = True
         elif event.char == "m":
-            if not self.m_key:
+            if not self.keys['m_key']:
                 self.frames["StartPage"].median_filter()
-            self.m_key = True
+            self.keys['m_key'] = True
+        elif event.char == "z":
+            if not self.keys['z_key']:
+                print("increasing noise")
+            self.keys['z_key'] = True
+        elif event.char == 'x':
+            if not self.keys['x_key']:
+                print("decreasing noise")
+            self.keys['x_key'] = True
+        elif event.char == 'i':
+            if not self.keys['i_key']:
+                self.frames["StartPage"].bilateral_filter()
+        elif event.char == 'c':
+            if not self.keys['c_key']:
+                self.frames["StartPage"].custom_kernel()
 
     def key_up(self, event):
+        ''' Runs whenever any key is pressed and the main display is on focus
+        '''
         if event.char == "b":
-            self.b_key = False
+            self.keys['b_key'] = False
         elif event.char == "g":
-            self.g_key = False
+            self.keys['g_key'] = False
         elif event.char == "f":
-            self.f_key = False
+            self.keys['f_key'] = False
         elif event.char == "u":
-            self.u_key = False
+            self.keys['u_key'] = False
         elif event.char == "m":
-            self.m_key = False
+            self.keys['m_key'] = False
+        elif event.char == "z":
+            self.keys['z_key'] = False
+        elif event.char == 'x':
+            self.keys['x_key'] = False
+        elif event.char == "i":
+            self.keys['i_key'] = False
+        elif event.char == "c":
+            self.keys['c_key'] = False
 
     def press(self, event):
         ''' Prints out the location of mouse clicks on the StartPage '''
-        # frame.focus_set() TODO
         print("left at", event.x, event.y)
 
     def right_click(self, event):
+        ''' Runs every time the right mouse button is pressed '''
         print("right click at", event.x, event.y)
 
     def show_frame(self, controller):
+        ''' Shows the given frame '''
         # Load the frame in from the dictionary where we store all frames
         frame = self.frames[controller]
         # Bring the frame to the front
         frame.tkraise()
-        frame.focus_set()  # TODO:
+        frame.focus_set()
 
     def set_size(self, width=500, height=500):
+        ''' Takes a width and height and sets the startPage frame to that size
+        '''
         self.width = width
         self.height = height
         self.frames["StartPage"].set_size(self.width, self.height)
@@ -281,11 +306,21 @@ class StartPage(tk.Frame):
         label = tk.Label(self, text="Off-Brand Photoshop", font=LARGE_FONT, bg="#EEEEEE", fg=self.BUTTON_COLOR)
         label.grid(row=0, column=0, sticky="W", padx=(15, 0))
 
-        button = tk.Button(self, text="Choose Image", command=self.choose_file, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
-        button2 = tk.Button(self, text="Copy", command=self.copy_img, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=15, pady=6)
-        button3 = tk.Button(self, text="Save", command=self.save, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
-        button4 = tk.Button(self, text="Save as...", command=self.save_as, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
-        button5 = tk.Button(self, text="Undo", command=self.undo, bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT, borderwidth=1, padx=10, pady=6)
+        button = tk.Button(self, text="Choose Image", command=self.choose_file,
+                           bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT,
+                           borderwidth=1, padx=10, pady=6)
+        button2 = tk.Button(self, text="Copy", command=self.copy_img,
+                            bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT,
+                            borderwidth=1, padx=15, pady=6)
+        button3 = tk.Button(self, text="Save", command=self.save,
+                            bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT,
+                            borderwidth=1, padx=10, pady=6)
+        button4 = tk.Button(self, text="Save as...", command=self.save_as,
+                            bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT,
+                            borderwidth=1, padx=10, pady=6)
+        button5 = tk.Button(self, text="Undo", command=self.undo,
+                            bg=self.BUTTON_COLOR, fg=self.BUTTON_HIGHLIGHT,
+                            borderwidth=1, padx=10, pady=6)
 
         for i in [button, button2, button3, button4, button5]:
             i.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
@@ -318,14 +353,28 @@ class StartPage(tk.Frame):
         self.panel = tk.Label(self, image=self.tkimg, bd=0)
         self.panel.grid(row=1, column=0, pady=6, padx=15, columnspan=10, rowspan=15)
 
-        button6 = tk.Button(self, text="Box Blur", command=self.box_blur, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=28, pady=5)
-        button7 = tk.Button(self, text="Gaussian Blur", command=self.gaussian_blur, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=15, pady=5)
-        button8 = tk.Button(self, text="Rotate180", command=self.flip, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=20, pady=5)
-        button9 = tk.Button(self, text="Unsharp Masking", command=self.unsharp_masking, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=5, pady=5)
-        button10 = tk.Button(self, text="Median Filter", command=self.median_filter, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=15, pady=5)
-        button12 = tk.Button(self, text="Bilateral Filter", command=self.bilateral_filter, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=15, pady=5)
-        button11 = tk.Button(self, text="Add Noise", command=self.add_noise, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=22, pady=5)
-        button13 = tk.Button(self, text="Custom Kernel", command=self.kernel_custom, bg="#4286f4", fg="#ffffff", borderwidth=1, padx=13, pady=5)
+        button6 = tk.Button(self, text="Box Blur", command=self.box_blur,
+                            bg="#4286f4", fg="#ffffff", borderwidth=1, padx=28, pady=5)
+        button7 = tk.Button(self, text="Gaussian Blur",
+                            command=self.gaussian_blur, bg="#4286f4",
+                            fg="#ffffff", borderwidth=1, padx=15, pady=5)
+        button8 = tk.Button(self, text="Rotate180", command=self.flip,
+                            bg="#4286f4", fg="#ffffff", borderwidth=1,
+                            padx=20, pady=5)
+        button9 = tk.Button(self, text="Unsharp Masking",
+                            command=self.unsharp_masking, bg="#4286f4",
+                            fg="#ffffff", borderwidth=1, padx=5, pady=5)
+        button10 = tk.Button(self, text="Median Filter",
+                             command=self.median_filter, bg="#4286f4",
+                             fg="#ffffff", borderwidth=1, padx=15, pady=5)
+        button12 = tk.Button(self, text="Bilateral Filter",
+                             command=self.bilateral_filter, bg="#4286f4",
+                             fg="#ffffff", borderwidth=1, padx=15, pady=5)
+        button11 = tk.Button(self, text="Add Noise", command=self.add_noise,
+                             bg="#4286f4", fg="#ffffff", borderwidth=1, padx=22, pady=5)
+        button13 = tk.Button(self, text="Custom Kernel",
+                             command=self.kernel_custom, bg="#4286f4",
+                             fg="#ffffff", borderwidth=1, padx=13, pady=5)
 
         button6.grid(row=1, column=10, padx=(0, 14), pady=0)
         button7.grid(row=2, column=10, padx=(0, 14), pady=5)
@@ -346,7 +395,6 @@ class StartPage(tk.Frame):
         self.w = tk.Scale(self, from_=0, to=250000)
         self.w.grid(row=10, column=10, padx=0, pady=0)
 
-
         self.editor = PhotoEditor("C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo2.jpg")
         self.label2 = tk.Label(self, text="Metadata: null", font=LARGE_FONT, bg="#EEEEEE", fg="#4286f4")
         self.label2.grid(row=16, column=0, pady=0, columnspan=10)
@@ -357,11 +405,15 @@ class StartPage(tk.Frame):
         self.update_metadata()
 
     def set_size(self, width, height):
+        ''' Changes the size of the image currently being displayed
+        '''
         self.width = width
         self.height = height
         self.update_image(self.curr_dir)
 
     def update_metadata(self):
+        ''' Reloads the metadata displayed about the image
+        '''
         self.label2.config(text=f"{self.editor.get_meta_data(self.curr_image)}")
 
     def kernel_custom(self):
@@ -375,9 +427,7 @@ class StartPage(tk.Frame):
                               dtype=np.int32)
             total = 1
         else:
-            # TODO: do this when it's not 2 am
-            total = s[0] + s[1] + s[2] + s[3] + s[4] + s[5] + s[6] + s[7] + s[8]
-            total = 1/total
+            total = 1 / sum(s[:9])
             kernel = np.array([[s[0], s[1], s[2]], [s[3], s[4], s[5]], [s[6],
                               s[7], s[8]]], dtype=np.int32)
 
@@ -385,15 +435,18 @@ class StartPage(tk.Frame):
         self.update_image(new_image, mode="2")
 
     def add_noise(self):
+        ''' Calls the function in the editor to add noise to the image w/
+        the number of pixels given by the slider '''
         new_image = self.editor.add_noise(self.curr_image, self.w.get())
         self.update_image(new_image, mode="2")
 
     def undo(self):
+        ''' Set the current image to be the previously saved image '''
         if self.prev_dir is not None:
             self.update_image(self.prev_dir)
 
     def copy_img(self):
-        ''' '''
+        ''' TODO: currently not working '''
         self.parent.clipboard_clear()
         self.parent.clipboard_append(self.curr_dir)
         self.parent.update()
@@ -409,6 +462,8 @@ class StartPage(tk.Frame):
         self.curr_image.save(filename)
 
     def save_as(self):
+        ''' Opens the file browser so that the user can select a place
+        to save the current image '''
         try:
             filename = filedialog.askopenfilename(initialdir="/", title="Select \
                 file", filetypes=(("jpeg files", "*.jpg"), ("all files", "*.*")))
