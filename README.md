@@ -9,5 +9,8 @@ Unsharp Masking, Custom Kernel, Median Filter, Box Blur, Add Noise, Gaussian Blu
 ## Libraries
 
 tkinter - GUI
+
 PIL, cv2 - Image Manipulation 
+
 numpy - Obtaining/Storing Image Data 
+
