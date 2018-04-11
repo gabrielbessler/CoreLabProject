@@ -1,15 +1,80 @@
+
 from tkinter import filedialog
 from PIL import Image, ImageTk
+from scipy import linalg
 import tkinter as tk
 import numpy as np
 import random
 import sys
 import cv2
 
-# cv2 - opencv (used for image processing)
-
 LARGE_FONT = ("Trebuchet MS", 14)
 FONT_SMALL = ("Trebuchet MS", 1)
+
+# BUG 1: Does not working when running through iPython
+
+
+class SVDCompression():
+
+    def __init__(self, img, k_value):
+        ''' Initializes the SVD compressor by taking in
+        the image and necessary k value '''
+        self.image = img
+        self.k_val = k_value
+
+    def do_svd(self):
+        # TODO
+        new_image = self.RGB_to_greyscale()
+        eigenvalues = self.get_eigenvalues(new_image.load())
+        singularvalues = self.eigenvalues_to_singularvalues(eigenvalues)
+
+    def RGB_to_greyscale(self):
+        ''' Takes an image in the standard RGB format
+        and returns a representation of the image in
+        grayscale by averaging the red, green, and blue
+        values '''
+        size = self.image.size
+        new_image = self.image
+        pix = new_image.load()
+        for x in range(size[0]):
+            for y in range(size[1]):
+                new_value = sum(pix[x, y]) // 3
+                pix[x, y] = (new_value, new_value, new_value)
+
+        # now we have the grayscale image in np_array
+        np_array = np.array(new_image, dtype=np.float64)[:, :, 0]
+
+        U, sigma, V = np.linalg.svd(np_array)
+
+        for i in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
+            reconstimg = np.matrix(U[:, :i]) * np.diag(sigma[:i]) * np.matrix(V[:i, :])
+            m.pyplot.imshow(reconstimg, cmap='gray')
+            m.pyplot.title = "n = %s" % i
+            m.pyplot.title(title)
+            m.pyplot.plt.show()
+
+        # TEMPORARY - TODO: REMOVE
+        np_array = np.array(new_image, dtype=np.float64)[:, :, 0]
+        np_array_t = np_array.transpose()
+        # square_boi = np_array * np_array_t
+        square_boi = np.dot(np_array.transpose(), np_array)
+        L = self.get_eigenvalues(square_boi)
+        eigenvalues, eigenvectors = (L[0], L[1])
+        singular_values = self.eigenvalues_to_singularvalues(eigenvalues)
+
+        return new_image
+
+    def get_eigenvalues(self, M):
+        ''' Takes some NxN list (matrix) M and returns all of its eigenvalues '''
+        return linalg.eigh(M)
+
+    def eigenvalues_to_singularvalues(self, L):
+        ''' Takes a list of eigevalues and then converts them to
+            singular values in decreasing order '''
+        try:
+            return sorted([i**.5 for i in L])[::-1]
+        except:
+            raise ValueError()
 
 
 class PhotoEditor():
@@ -43,13 +108,15 @@ class PhotoEditor():
         self.disp(f"Unsharp Masking Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
 
         new_img = img
-        open_cv_image = np.array(new_img) #convert the image to a format that can be use by open_cv
+        open_cv_image = np.array(new_img)  # convert the image to a format that
+        # can be used by open_cv
         # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
 
         # cv2.getGaussianKernel() will show the kernel used for this
         blur = cv2.GaussianBlur(open_cv_image, (5, 5), 10.0)
         # Takes weighted sum of two arrays
-        unsharp_image = cv2.addWeighted(open_cv_image, 1.5, blur, -0.5, 0, open_cv_image)
+        unsharp_image = cv2.addWeighted(open_cv_image, 1.5, blur, -0.5, 0,
+                                        open_cv_image)
 
         # Convert into Image
         im = Image.fromarray(unsharp_image)
@@ -91,7 +158,7 @@ class PhotoEditor():
         # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
 
         # cv2.getGaussianKernel() will show the kernel used for this
-        blur = cv2.boxFilter(open_cv_image, -1, (3,3))
+        blur = cv2.boxFilter(open_cv_image, -1, (3, 3))
 
         # convert into Image
         im = Image.fromarray(blur)
@@ -130,7 +197,8 @@ class PhotoEditor():
     def bilateral_filter(self, img, x_0=0, y_0=0, x_1=800, y_1=600):
         self.disp(f"Gaussian Blur Applied on ({x_0}, {y_0}), ({x_1}, {y_1})")
         new_img = img
-        open_cv_image = np.array(new_img) #convert the image to a format that can be use by open_cv
+        open_cv_image = np.array(new_img)  # convert the image to a format that
+        #  can be use by open_cv
         # open_cv_image = open_cv_image[:, :, ::-1].copy() # Convert RGB to BGR
 
         blur = cv2.bilateralFilter(open_cv_image, 20, 15, 80, 80)
@@ -155,8 +223,8 @@ class PhotoEditor():
 
     def get_meta_data(self, img):
         '''
-        Returns the format, size, and mode (RBG, etc.) associate with a PIL image
-        object
+        Returns the format, size, and mode (RBG, etc.) associate with a PIL
+        image object
         '''
         return f"Format: {img.format}, Size: {img.size}, Mode: {img.mode}"
 
@@ -180,7 +248,11 @@ class PhotoGUI(tk.Tk):
     def __init__(self, *args, **kwargs):
         ''' Creates the main Tkinter GUI '''
         # Box Blur, Gauss Blur, Flip, Unsharp Masking, Median Filter, Add Noise
-        self.keys = {'b_key': False, 'g_key': False, 'f_key': False, 'u_left': False, 'm_left': False, 'a_key': False, 'z_key': False, 'x_key': False, 'i_key': False, 'c_key': False}
+        # SVDCompression
+        self.keys = {'b_key': False, 'g_key': False, 'f_key': False,
+                     'u_left': False, 'm_left': False, 'a_key': False,
+                     'z_key': False, 'x_key': False, 'i_key': False,
+                     'c_key': False, 's_key': False}
 
         # Creates the display for the frames
         tk.Tk.__init__(self, *args, **kwargs)
@@ -241,6 +313,9 @@ class PhotoGUI(tk.Tk):
         elif event.char == 'c':
             if not self.keys['c_key']:
                 self.frames["StartPage"].custom_kernel()
+        elif event.char == 's':
+            if not self.keys['s_key']:
+                self.frames["StartPage"].svd()
 
     def key_up(self, event):
         ''' Runs whenever any key is pressed and the main display is on focus
@@ -263,6 +338,8 @@ class PhotoGUI(tk.Tk):
             self.keys['i_key'] = False
         elif event.char == "c":
             self.keys['c_key'] = False
+        elif event.char == "s":
+            self.keys['s_key'] = False
 
     def press(self, event):
         ''' Prints out the location of mouse clicks on the StartPage '''
@@ -303,7 +380,8 @@ class StartPage(tk.Frame):
 
         tk.Frame.__init__(self, parent, bg="#EEEEEE")
 
-        label = tk.Label(self, text="Off-Brand Photoshop", font=LARGE_FONT, bg="#EEEEEE", fg=self.BUTTON_COLOR)
+        label = tk.Label(self, text="Off-Brand Photoshop", font=LARGE_FONT,
+                         bg="#EEEEEE", fg=self.BUTTON_COLOR)
         label.grid(row=0, column=0, sticky="W", padx=(15, 0))
 
         button = tk.Button(self, text="Choose Image", command=self.choose_file,
@@ -339,7 +417,7 @@ class StartPage(tk.Frame):
         button5.grid(row=0, column=9, padx=(0, 14), pady=button_padding,
                      sticky="E")
 
-        demo_dir = "C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo1.jpg"
+        demo_dir = "C:/Users/Gabe/Documents/Programming/Photoshep/demo1.jpg"
 
         self.curr_image = Image.open(demo_dir) \
             .resize((self.width, self.width), Image.ANTIALIAS)
@@ -351,10 +429,12 @@ class StartPage(tk.Frame):
         self.prev_tkimg = None
 
         self.panel = tk.Label(self, image=self.tkimg, bd=0)
-        self.panel.grid(row=1, column=0, pady=6, padx=15, columnspan=10, rowspan=15)
+        self.panel.grid(row=1, column=0, pady=6, padx=15, columnspan=10,
+                        rowspan=15)
 
         button6 = tk.Button(self, text="Box Blur", command=self.box_blur,
-                            bg="#4286f4", fg="#ffffff", borderwidth=1, padx=28, pady=5)
+                            bg="#4286f4", fg="#ffffff", borderwidth=1, padx=28,
+                            pady=5)
         button7 = tk.Button(self, text="Gaussian Blur",
                             command=self.gaussian_blur, bg="#4286f4",
                             fg="#ffffff", borderwidth=1, padx=15, pady=5)
@@ -371,9 +451,13 @@ class StartPage(tk.Frame):
                              command=self.bilateral_filter, bg="#4286f4",
                              fg="#ffffff", borderwidth=1, padx=15, pady=5)
         button11 = tk.Button(self, text="Add Noise", command=self.add_noise,
-                             bg="#4286f4", fg="#ffffff", borderwidth=1, padx=22, pady=5)
+                             bg="#4286f4", fg="#ffffff", borderwidth=1,
+                             padx=22, pady=5)
         button13 = tk.Button(self, text="Custom Kernel",
                              command=self.kernel_custom, bg="#4286f4",
+                             fg="#ffffff", borderwidth=1, padx=13, pady=5)
+        button14 = tk.Button(self, text="SVD Compression",
+                             command=self.svd, bg="#4286f4",
                              fg="#ffffff", borderwidth=1, padx=13, pady=5)
 
         button6.grid(row=1, column=10, padx=(0, 14), pady=0)
@@ -384,22 +468,29 @@ class StartPage(tk.Frame):
         button11.grid(row=6, column=10, padx=(0, 14), pady=5)
         button12.grid(row=7, column=10, padx=(0, 14), pady=5)
         button13.grid(row=8, column=10, padx=(0, 14), pady=5)
+        button14.grid(row=9, column=10, padx=(0, 14), pady=5)
 
-        for i in [button6, button7, button8, button9, button10, button11, button12, button13]:
+        for i in [button6, button7, button8, button9, button10, button11,
+                  button12, button13, button14]:
             i.bind("<Enter>", lambda x: x.widget.config(bg="#083D91"))
             i.bind("<Leave>", lambda x: x.widget.config(bg="#4286f4"))
 
         self.input_kernel = tk.Text(self, height=2, width=12)
-        self.input_kernel.grid(row=9, column=10, padx=0, pady=0)
+        self.input_kernel.grid(row=10, column=10, padx=0, pady=0)
 
         self.w = tk.Scale(self, from_=0, to=250000)
-        self.w.grid(row=10, column=10, padx=0, pady=0)
+        self.svd_scale = tk.Scale(self, from_=0, to=1000)
+        self.w.grid(row=11, column=10, padx=0, pady=0)
+        self.svd_scale.grid(row=11, column=11, padx=0, pady=0)
 
-        self.editor = PhotoEditor("C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo2.jpg")
-        self.label2 = tk.Label(self, text="Metadata: null", font=LARGE_FONT, bg="#EEEEEE", fg="#4286f4")
+        link = "C:/Users/Gabe/Desktop/CoreLabProject/CoreLabProject/demo2.jpg"
+        self.editor = PhotoEditor(link)
+        self.label2 = tk.Label(self, text="Metadata: null", font=LARGE_FONT,
+                               bg="#EEEEEE", fg="#4286f4")
         self.label2.grid(row=16, column=0, pady=0, columnspan=10)
 
-        label_new = tk.Label(self, text=" ", font=FONT_SMALL, bg="#EEEEEE", fg="#4286f4")
+        label_new = tk.Label(self, text=" ", font=FONT_SMALL, bg="#EEEEEE",
+                             fg="#4286f4")
         label_new.grid(row=17, column=0, sticky="W", pady=0)
 
         self.update_metadata()
@@ -414,7 +505,8 @@ class StartPage(tk.Frame):
     def update_metadata(self):
         ''' Reloads the metadata displayed about the image
         '''
-        self.label2.config(text=f"{self.editor.get_meta_data(self.curr_image)}")
+        s = f"{self.editor.get_meta_data(self.curr_image)}"
+        self.label2.config(text=s)
 
     def kernel_custom(self):
         ''' Allows the user to input a custom kernel that will be convolved
@@ -432,6 +524,16 @@ class StartPage(tk.Frame):
                               s[7], s[8]]], dtype=np.int32)
 
         new_image = self.editor.custom_kernel(self.curr_image, kernel, total)
+        self.update_image(new_image, mode="2")
+
+    def svd(self):
+        '''
+        Allows the user to select the k value that will be used. The image will
+        be compressed by doing SVD decomposition and then taking the first k
+        terms (refer to documentation for indepth explanation).
+        '''
+        svd_handler = SVDCompression(self.curr_image, self.svd_scale.get())
+        new_image = svd_handler.RGB_to_greyscale()
         self.update_image(new_image, mode="2")
 
     def add_noise(self):
@@ -466,7 +568,8 @@ class StartPage(tk.Frame):
         to save the current image '''
         try:
             filename = filedialog.askopenfilename(initialdir="/", title="Select \
-                file", filetypes=(("jpeg files", "*.jpg"), ("all files", "*.*")))
+                file", filetypes=(("jpeg files", "*.jpg"),
+                                  ("all files", "*.*")))
             self.save(filename)
         except:
             pass
@@ -498,12 +601,14 @@ class StartPage(tk.Frame):
 
     def flip(self):
         ''' Calls the flip function in the photo editor class '''
-        new_image = self.editor.flip(self.curr_image, 0, 0, self.curr_image.size[0], self.curr_image.size[1])
+        new_image = self.editor.flip(self.curr_image, 0, 0,
+                                     self.curr_image.size[0],
+                                     self.curr_image.size[1])
         self.update_image(new_image, mode="2")
 
     def update_image(self, image_name, mode="Image Name"):
-        ''' Given an image_name, displays the new picture and updates all of the variables
-        in the current frame '''
+        ''' Given an image_name, displays the new picture and updates all of
+        the variables in the current frame '''
         # Store the old data
         self.prev_image = self.curr_image
         self.prev_dir = self.curr_dir
@@ -527,7 +632,8 @@ class StartPage(tk.Frame):
         updates the image accordingly '''
         try:
             filename = filedialog.askopenfilename(initialdir="/", title="Select \
-                file", filetypes=(("jpeg files", "*.jpg"), ("all files", "*.*")))
+                file", filetypes=(("jpeg files", "*.jpg"),
+                                  ("all files", "*.*")))
             self.update_image(filename)
         except:
             pass
@@ -535,8 +641,11 @@ class StartPage(tk.Frame):
 
 def init():
     ''' Initializes the GUI for the photo editor '''
+    # Default width and height for the image
     pic_width = 500
     pic_height = 500
+
+    # Check if the user specified a custom image size
     for i in sys.argv:
         if i[:2] == "-w":
             pic_width = i[3:]
@@ -545,8 +654,10 @@ def init():
 
     photo_editor = PhotoGUI()
     photo_editor.set_size(pic_width, pic_height)
-    photo_editor.frames['StartPage'].update_image(photo_editor.frames['StartPage'].curr_image, mode="2")
-    photo_editor.title("Photoshep - 17 Day Free Trial (12 flex dollars to purchase) ")
+    photo_editor.frames['StartPage'].update_image(
+        photo_editor.frames['StartPage'].curr_image, mode="2")
+    title_text = "Photoshep - 17 Day Free Trial (12 flex dollars to purchase) "
+    photo_editor.title(title_text)
     photo_editor.iconbitmap("icon.ico")
     photo_editor.mainloop()
 
